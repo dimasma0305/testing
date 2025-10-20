@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTF Test Challenge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 800px;
+            padding: 3rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .emoji {
+            font-size: 5rem;
+            margin: 2rem 0;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .info {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2rem;
+            border-radius: 10px;
+            margin: 2rem 0;
+        }
+
+        .info p {
+            margin: 0.5rem 0;
+            font-size: 1.1rem;
+        }
+
+        .flag {
+            background: rgba(255, 215, 0, 0.2);
+            border: 2px dashed #ffd700;
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 2rem 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ffd700;
+            word-break: break-all;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #10b981;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+
+        .features {
+            text-align: left;
+            margin: 2rem 0;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .features ul {
+            list-style: none;
+            padding-left: 1rem;
+        }
+
+        .features li {
+            padding: 0.5rem 0;
+            position: relative;
+        }
+
+        .features li:before {
+            content: "✓";
+            position: absolute;
+            left: -1.5rem;
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.2rem 0.5rem;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="emoji">🚀</div>
+        <h1>Test Challenge Deployed!</h1>
+        
+        <div class="status">✓ Deployment Successful</div>
+
+        <div class="info">
+            <p><strong>Challenge Name:</strong> testing-repo</p>
+            <p><strong>Type:</strong> Web Application</p>
+            <p><strong>Difficulty:</strong> Easy (Test)</p>
+            <p><strong>Server:</strong> Nginx Alpine</p>
+        </div>
+
+        <div class="flag">
+            🏁 FLAG{test_deployment_successful_2024}
+        </div>
+
+        <div class="features">
+            <h3>✨ Test Features Verified:</h3>
+            <ul>
+                <li>Docker Compose auto-detection</li>
+                <li>Dynamic port allocation</li>
+                <li>Health check monitoring</li>
+                <li>Nginx web server</li>
+                <li>Volume mounting</li>
+                <li>Auto-restart policy</li>
+            </ul>
+        </div>
+
+        <div class="info">
+            <p style="font-size: 0.9rem; opacity: 0.8;">
+                This is a test challenge for the CTF Challenge Deployer.<br>
+                Repository: <code>testing-repo</code><br>
+                If you can see this page, your deployment is working correctly!
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Add deployment timestamp
+        document.addEventListener('DOMContentLoaded', () => {
+            const info = document.querySelector('.info:last-of-type');
+            const timestamp = document.createElement('p');
+            timestamp.style.fontSize = '0.8rem';
+            timestamp.style.marginTop = '1rem';
+            timestamp.textContent = `Deployed at: ${new Date().toLocaleString()}`;
+            info.appendChild(timestamp);
+        });
+    </script>
+</body>
+</html>
+
