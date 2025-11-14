@@ -16,7 +16,7 @@ services:
   web2:
     image: nginx:alpine
     ports:
-      - "81"
+      - "80"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 10s
