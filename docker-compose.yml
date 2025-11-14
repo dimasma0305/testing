@@ -2,9 +2,11 @@ version: '3.8'
 
 services:
   web:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.web1
     ports:
-      - "80"
+      - "1336:80"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 10s
@@ -14,9 +16,11 @@ services:
     restart: unless-stopped
   
   web2:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.web2
     ports:
-      - "80"
+      - "1337:80"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 10s
