@@ -1,6 +1,6 @@
-# Testing Repository - CTF Test Challenge
+# Testing Challenges - Demo Event
 
-A simple test challenge for the CTF Challenge Deployer system.
+Sample container challenges for the CTF Challenge Deployer system.
 
 ## Purpose
 
@@ -15,11 +15,21 @@ This repository contains a minimal web-based CTF challenge that can be used to t
 ## Structure
 
 ```
-testing-repo/
-├── docker-compose.yml    # Defines the challenge service
-├── web/
-│   └── index.html       # Simple web page with flag
-└── README.md           # This file
+testing/
+└── demo-event/
+    └── web/
+        ├── web1/
+        │   ├── challenge.yml       # name/category/type + compose_file
+        │   ├── docker-compose.yml  # single-service compose
+        │   ├── Dockerfile          # nginx serving ./web
+        │   └── web/
+        │       └── index.html
+        └── web2/
+            ├── challenge.yml
+            ├── docker-compose.yml
+            ├── Dockerfile
+            └── web/
+                └── index.html
 ```
 
 ## Challenge Details
@@ -29,75 +39,18 @@ testing-repo/
 - **Port**: 80 (dynamically allocated)
 - **Flag**: `FLAG{test_deployment_successful_2024}`
 
-## How to Use
+## How to Use (new flow)
 
-### Via Web UI
+1. Push changes (including `challenge.yml` + compose) to the repo.
+2. GitHub Actions workflow `automation/challenge-builder.yml` registers each challenge by posting to the Challenge service.
+3. Orchestrator reads available challenges from the Challenge service and deploys them.
 
-1. Open the Web UI: http://localhost:8080
-2. Go to "Create Challenge" tab
-3. Fill in:
-   ```
-   Repository: /root/nomadlab/testing-repo
-   Ref: main
-   Path: .
-   ```
-   > Note: For local testing, you can use the absolute path. For remote testing, push this repo to GitHub/GitLab and use that URL.
+## challenge.yml fields
 
-4. Click "Create Challenge"
-5. Deploy from the Challenges tab
-6. Access the challenge via the provided URL
-
-### Via API
-
-**Create Challenge:**
-```bash
-curl -X POST http://localhost:3000/api/v1/challenges \
-  -H "Content-Type: application/json" \
-  -d '{
-    "repository": "/root/nomadlab/testing-repo",
-    "ref": "main",
-    "path": "."
-  }'
-```
-
-**Deploy Challenge:**
-```bash
-# Replace <challenge-id> with the ID from above
-curl -X POST http://localhost:3000/api/v1/deployments \
-  -H "Content-Type: application/json" \
-  -d '{
-    "challenge_id": "<challenge-id>",
-    "user_id": "test-user-123"
-  }'
-```
-
-**Check Deployment:**
-```bash
-# Replace <deployment-id> with the ID from above
-curl http://localhost:3000/api/v1/deployments/<deployment-id>
-```
-
-## Testing GitHub Integration
-
-To test with a real Git repository:
-
-1. Create a GitHub repository
-2. Push this content:
-   ```bash
-   cd testing-repo
-   git init
-   git add .
-   git commit -m "Initial test challenge"
-   git remote add origin https://github.com/YOUR_USERNAME/test-ctf-challenge.git
-   git push -u origin main
-   ```
-
-3. Use in Web UI:
-   ```
-   Repository: https://github.com/YOUR_USERNAME/test-ctf-challenge.git
-   Ref: main
-   Path: .
-   ```
+- `name`: Challenge display name (e.g., `web1`)
+- `category`: Category (`web`, `pwn`, `crypto`, `forensics`, `misc`)
+- `type`: Challenge type (currently `container`)
+- `compose_file`: Relative compose file (default `docker-compose.yml`)
 
 ## What Gets Auto-Detected
 

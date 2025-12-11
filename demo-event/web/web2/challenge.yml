@@ -1,0 +1,6 @@
+name: web2
+category: web
+type: container
+compose_file: docker-compose.yml
+description: Simple nginx web challenge (web2) for demo-event.
+

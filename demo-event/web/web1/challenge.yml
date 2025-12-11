@@ -1,0 +1,6 @@
+name: web1
+category: web
+type: container
+compose_file: docker-compose.yml
+description: Simple nginx web challenge (web1) for demo-event.
+

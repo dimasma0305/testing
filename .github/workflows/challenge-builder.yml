@@ -1,0 +1,150 @@
+name: Auto Register Challenges
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - '**/challenge.yml'
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - '**/challenge.yml'
+  workflow_dispatch:
+    inputs:
+      challenge_path:
+        description: 'Path to challenge folder (e.g., challenges/web-challenge)'
+        required: true
+        type: string
+
+jobs:
+  register-challenge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for commit SHA
+
+      - name: Detect changed challenge files
+        id: detect-challenges
+        run: |
+          # Get list of changed challenge.yml files
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger - use provided path
+            CHALLENGE_PATH="${{ github.event.inputs.challenge_path }}"
+            if [ -f "$CHALLENGE_PATH/challenge.yml" ]; then
+              echo "challenges<<EOF" >> $GITHUB_OUTPUT
+              echo "$CHALLENGE_PATH" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+            else
+              echo "Error: challenge.yml not found at $CHALLENGE_PATH/challenge.yml"
+              exit 1
+            fi
+          else
+            # Auto-detect from changed files
+            echo "challenges<<EOF" >> $GITHUB_OUTPUT
+            git diff --name-only ${{ github.event.before }} ${{ github.sha }} | \
+              grep -E 'challenge\.yml$' | \
+              xargs -r -n1 dirname | \
+              sort -u >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Register challenges with Challenge service
+        env:
+          CHALLENGE_URL: ${{ secrets.CHALLENGE_URL || 'http://localhost:8082' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "${{ steps.detect-challenges.outputs.challenges }}" ]; then
+            echo "No challenges detected to register"
+            exit 0
+          fi
+
+          COMMIT_SHA="${{ github.sha }}"
+          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+          
+          echo "${{ steps.detect-challenges.outputs.challenges }}" | while read challenge_dir; do
+            if [ -z "$challenge_dir" ]; then
+              continue
+            fi
+
+            echo "Registering challenge from: $challenge_dir"
+            
+            # Determine compose file from challenge.yml (default docker-compose.yml)
+            COMPOSE_FILE=$(grep -E '^compose_file:' "$challenge_dir/challenge.yml" | awk '{print $2}')
+            if [ -z "$COMPOSE_FILE" ]; then
+              COMPOSE_FILE="docker-compose.yml"
+            fi
+
+            COMPOSE_PATH="$challenge_dir/$COMPOSE_FILE"
+
+            if [ ! -f "$COMPOSE_PATH" ]; then
+              echo "Error: compose file not found for $challenge_dir at $COMPOSE_PATH"
+              exit 1
+            fi
+
+            # Extract relative path from repo root
+            COMPOSE_RELATIVE_PATH=$(echo "$COMPOSE_PATH" | sed "s|^\./||")
+
+            # Build JSON payload
+            PAYLOAD=$(cat <<EOF
+          {
+            "repo": "$REPO_URL",
+            "commit": "$COMMIT_SHA",
+            "path": "$COMPOSE_RELATIVE_PATH"
+          }
+          EOF
+            )
+
+            echo "Sending registration request:"
+            echo "$PAYLOAD" | jq '.'
+
+            # Send registration request to challenge service
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              "$CHALLENGE_URL/challenges")
+
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+
+            if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+              echo "✅ Successfully registered challenge: $challenge_dir"
+              echo "Response: $BODY"
+            else
+              echo "❌ Failed to register challenge: $challenge_dir"
+              echo "HTTP Code: $HTTP_CODE"
+              echo "Response: $BODY"
+              exit 1
+            fi
+          done
+
+      - name: Create GitHub comment (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const challenges = `${{ steps.detect-challenges.outputs.challenges }}`.split('\n').filter(Boolean);
+            if (challenges.length > 0) {
+              const body = `## 🚀 Challenge Registration Results
+              
+              Registered ${challenges.length} challenge(s):
+              ${challenges.map(c => `- \`${c}\``).join('\n')}
+              
+              Commit: \`${{ github.sha }}\``;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
+
