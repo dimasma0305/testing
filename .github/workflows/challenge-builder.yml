@@ -57,10 +57,56 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
           fi
 
-      - name: Register challenges with Challenge service
+      - name: Log in to GHCR
         env:
-          CHALLENGE_URL: ${{ secrets.CHALLENGE_URL || 'http://localhost:8082' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build & push challenge images to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "${{ steps.detect-challenges.outputs.challenges }}" ]; then
+            echo "No challenges detected to build"
+            exit 0
+          fi
+
+          COMMIT_SHA="${{ github.sha }}"
+          OWNER_REPO="${{ github.repository }}"
+          OWNER="${OWNER_REPO%/*}"
+          REPO="${OWNER_REPO#*/}"
+
+          echo "${{ steps.detect-challenges.outputs.challenges }}" | while read challenge_dir; do
+            [ -z "$challenge_dir" ] && continue
+
+            COMPOSE_FILE=$(grep -E '^compose_file:' "$challenge_dir/challenge.yml" | awk '{print $2}')
+            [ -z "$COMPOSE_FILE" ] && COMPOSE_FILE="docker-compose.yml"
+            COMPOSE_PATH="$challenge_dir/$COMPOSE_FILE"
+            [ -f "$COMPOSE_PATH" ] || { echo "Compose not found: $COMPOSE_PATH"; exit 1; }
+
+            echo "Building services for $challenge_dir using $COMPOSE_PATH"
+            services=$(docker compose -f "$COMPOSE_PATH" config --format json | jq -r '.services | to_entries[] | select(.value.build != null) | [.key, (.value.build.context // "."), (.value.build.dockerfile // "Dockerfile")] | @tsv')
+
+            if [ -z "$services" ]; then
+              echo "No build services found; skipping build for $challenge_dir"
+              continue
+            fi
+
+            while IFS=$'\t' read -r svc context dockerfile; do
+              tag="ghcr.io/${OWNER}/${REPO}-${svc}:${COMMIT_SHA}"
+              build_ctx="$challenge_dir/$context"
+              echo "Building ${svc} -> ${tag} (context: ${build_ctx}, dockerfile: ${dockerfile})"
+              docker build "$build_ctx" -f "$build_ctx/$dockerfile" -t "$tag" .
+              echo "Pushing ${tag}"
+              docker push "$tag"
+            done <<< "$services"
+          done
+
+      - name: Register challenges with Orchestrator
+        env:
+          ORCHESTRATOR_URL: ${{ secrets.ORCHESTRATOR_URL }}
+          ORCHESTRATOR_TOKEN: ${{ secrets.ORCHESTRATOR_TOKEN }}
         run: |
           if [ -z "${{ steps.detect-challenges.outputs.challenges }}" ]; then
             echo "No challenges detected to register"
@@ -92,25 +138,59 @@ jobs:
 
             # Extract relative path from repo root
             COMPOSE_RELATIVE_PATH=$(echo "$COMPOSE_PATH" | sed "s|^\./||")
+            
+            # Read compose content
+            COMPOSE_CONTENT=$(cat "$COMPOSE_PATH" | jq -sR .)
 
             # Build JSON payload
+            # We need to collect image tags built in previous step, but currently we just tagged them as latest or commit-sha.
+            # Ideally "image_tags" should be passed.
+            # For now, let's assume orchestrator can re-derive them or we just rely on latest/sha convention.
+            # But wait, CreateChallengeUseCase expects input.ImageTags if we want explicit control.
+            # Let's construct a simple map based on services.
+            
+            # Re-parse services to get names
+            services=$(docker compose -f "$COMPOSE_PATH" config --format json | jq -r '.services | keys[]')
+            
+            # Construct image_tags JSON object
+            IMAGE_TAGS_JSON="{"
+            first=true
+            OWNER_REPO="${{ github.repository }}"
+            OWNER="${OWNER_REPO%/*}"
+            REPO="${OWNER_REPO#*/}"
+            
+            for svc in $services; do
+              tag="ghcr.io/${OWNER}/${REPO}-${svc}:${COMMIT_SHA}"
+              # We need to map service name to tag
+              if [ "$first" = true ]; then
+                first=false
+              else
+                IMAGE_TAGS_JSON="$IMAGE_TAGS_JSON,"
+              fi
+              IMAGE_TAGS_JSON="$IMAGE_TAGS_JSON \"$svc\": \"$tag\""
+            done
+            IMAGE_TAGS_JSON="$IMAGE_TAGS_JSON}"
+
             PAYLOAD=$(cat <<EOF
           {
             "repo": "$REPO_URL",
             "commit": "$COMMIT_SHA",
-            "path": "$COMPOSE_RELATIVE_PATH"
+            "path": "$COMPOSE_RELATIVE_PATH",
+            "compose_content": $COMPOSE_CONTENT,
+            "image_tags": $IMAGE_TAGS_JSON
           }
           EOF
             )
 
-            echo "Sending registration request:"
-            echo "$PAYLOAD" | jq '.'
+            echo "Sending registration request to $ORCHESTRATOR_URL/challenges/register"
+            # echo "$PAYLOAD" | jq '.' # Debug payload (be careful with large content)
 
-            # Send registration request to challenge service
+            # Send registration request to orchestrator service
             RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
               -H "Content-Type: application/json" \
+              -H "X-Orchestrator-Token: $ORCHESTRATOR_TOKEN" \
               -d "$PAYLOAD" \
-              "$CHALLENGE_URL/challenges")
+              "$ORCHESTRATOR_URL/challenges/register")
 
             HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
             BODY=$(echo "$RESPONSE" | sed '$d')
