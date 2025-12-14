@@ -148,6 +148,9 @@ jobs:
             exit 0
           fi
 
+          # Strip trailing slash from ORCHESTRATOR_URL
+          ORCHESTRATOR_URL=${ORCHESTRATOR_URL%/}
+
           COMMIT_SHA="${{ github.sha }}"
           REPO_URL="${{ github.server_url }}/${{ github.repository }}"
           OWNER_REPO="${{ github.repository }}"
