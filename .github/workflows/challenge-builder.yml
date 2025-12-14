@@ -83,9 +83,10 @@ jobs:
 
             while IFS=$'\t' read -r svc context dockerfile; do
               tag="ghcr.io/${OWNER}/${REPO}-${svc}:${COMMIT_SHA}"
-              build_ctx="$challenge_dir/$context"
+              # docker compose config returns absolute paths
+              build_ctx="$context"
               echo "Building ${svc} -> ${tag} (context: ${build_ctx}, dockerfile: ${dockerfile})"
-              docker build "$build_ctx" -f "$build_ctx/$dockerfile" -t "$tag" .
+              docker build -f "$build_ctx/$dockerfile" -t "$tag" "$build_ctx"
               echo "Pushing ${tag}"
               docker push "$tag"
             done <<< "$services"
