@@ -22,6 +22,23 @@ jobs:
       contents: read
     
     steps:
+      - name: Configure Insecure Registry
+        env:
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+        if: ${{ env.REGISTRY_URL != '' }}
+        run: |
+           # Strip protocol if present for daemon.json configuration
+           DOMAIN=$(echo "$REGISTRY_URL" | sed -E 's~^https?://~~' | sed 's~/$~~')
+           echo "Configuring insecure registry for: $DOMAIN"
+           sudo mkdir -p /etc/docker
+           # Create or update daemon.json
+           if [ -f /etc/docker/daemon.json ]; then
+             sudo jq --arg domain "$DOMAIN" '."insecure-registries" += [$domain]' /etc/docker/daemon.json > tmp.json && sudo mv tmp.json /etc/docker/daemon.json
+           else
+             echo "{\"insecure-registries\": [\"$DOMAIN\"]}" | sudo tee /etc/docker/daemon.json
+           fi
+           sudo systemctl restart docker
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
