@@ -106,7 +106,7 @@ jobs:
       - name: Register challenges with Challenge Service
         env:
           ORCHESTRATOR_URL: ${{ secrets.ORCHESTRATOR_URL }}
-          ORCHESTRATOR_TOKEN: ${{ secrets.ORCHESTRATOR_TOKEN }}
+          CHALLENGE_TOKEN: ${{ secrets.CHALLENGE_TOKEN }}
         run: |
           if [ -z "${{ steps.detect-challenges.outputs.challenges }}" ]; then
             echo "No challenges detected to register"
@@ -184,7 +184,7 @@ jobs:
             # Send registration request to challenge service (via gateway)
             RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
               -H "Content-Type: application/json" \
-              -H "X-Orchestrator-Token: $ORCHESTRATOR_TOKEN" \
+              -H "X-Challenge-Token: $CHALLENGE_TOKEN" \
               -d "$PAYLOAD" \
               "$ORCHESTRATOR_URL/challenges/register")
 
