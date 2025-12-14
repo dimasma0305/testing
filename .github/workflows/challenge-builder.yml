@@ -14,11 +14,6 @@ on:
     paths:
       - '**/challenge.yml'
   workflow_dispatch:
-    branches:
-      - main
-      - master
-    paths:
-      - '**/challenge.yml'
 
 jobs:
   register-challenge:
@@ -35,33 +30,20 @@ jobs:
       - name: Detect changed challenge files
         id: detect-challenges
         run: |
-          # Get list of changed challenge.yml files
+          echo "challenges<<EOF" >> $GITHUB_OUTPUT
+          
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Manual trigger - use provided path
-            CHALLENGE_PATH="${{ inputs.challenge_path }}"
-            
-            if [ -z "$CHALLENGE_PATH" ]; then
-              echo "Error: challenge_path input is empty"
-              exit 1
-            fi
-
-            if [ -f "$CHALLENGE_PATH/challenge.yml" ]; then
-              echo "challenges<<EOF" >> $GITHUB_OUTPUT
-              echo "$CHALLENGE_PATH" >> $GITHUB_OUTPUT
-              echo "EOF" >> $GITHUB_OUTPUT
-            else
-              echo "Error: challenge.yml not found at $CHALLENGE_PATH/challenge.yml"
-              exit 1
-            fi
+            # Manual trigger - scan entire repository for challenge.yml files
+            find . -name "challenge.yml" -not -path '*/.*' | xargs -r -n1 dirname | sort -u >> $GITHUB_OUTPUT
           else
             # Auto-detect from changed files
-            echo "challenges<<EOF" >> $GITHUB_OUTPUT
             git diff --name-only ${{ github.event.before }} ${{ github.sha }} | \
               grep -E 'challenge\.yml$' | \
               xargs -r -n1 dirname | \
               sort -u >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
           fi
+          
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Log in to GHCR
         env:
