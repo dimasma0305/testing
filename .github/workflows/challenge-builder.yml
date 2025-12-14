@@ -103,7 +103,7 @@ jobs:
             done <<< "$services"
           done
 
-      - name: Register challenges with Orchestrator
+      - name: Register challenges with Challenge Service
         env:
           ORCHESTRATOR_URL: ${{ secrets.ORCHESTRATOR_URL }}
           ORCHESTRATOR_TOKEN: ${{ secrets.ORCHESTRATOR_TOKEN }}
@@ -143,11 +143,7 @@ jobs:
             COMPOSE_CONTENT=$(cat "$COMPOSE_PATH" | jq -sR .)
 
             # Build JSON payload
-            # We need to collect image tags built in previous step, but currently we just tagged them as latest or commit-sha.
-            # Ideally "image_tags" should be passed.
-            # For now, let's assume orchestrator can re-derive them or we just rely on latest/sha convention.
-            # But wait, CreateChallengeUseCase expects input.ImageTags if we want explicit control.
-            # Let's construct a simple map based on services.
+            # We need to collect image tags built in previous step.
             
             # Re-parse services to get names
             services=$(docker compose -f "$COMPOSE_PATH" config --format json | jq -r '.services | keys[]')
@@ -185,7 +181,7 @@ jobs:
             echo "Sending registration request to $ORCHESTRATOR_URL/challenges/register"
             # echo "$PAYLOAD" | jq '.' # Debug payload (be careful with large content)
 
-            # Send registration request to orchestrator service
+            # Send registration request to challenge service (via gateway)
             RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
               -H "Content-Type: application/json" \
               -H "X-Orchestrator-Token: $ORCHESTRATOR_TOKEN" \
