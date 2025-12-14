@@ -83,6 +83,9 @@ jobs:
              REGISTRY_BASE="ghcr.io/${OWNER}/${REPO}"
           fi
           
+          # Strip protocol if present
+          REGISTRY_BASE=$(echo "$REGISTRY_BASE" | sed -E 's~^https?://~~')
+          
           # Convert to lowercase as docker tags must be lowercase
           REGISTRY_BASE=$(echo "$REGISTRY_BASE" | tr '[:upper:]' '[:lower:]')
 
@@ -137,6 +140,9 @@ jobs:
           else
              REGISTRY_BASE="ghcr.io/${OWNER}/${REPO}"
           fi
+          
+          # Strip protocol if present
+          REGISTRY_BASE=$(echo "$REGISTRY_BASE" | sed -E 's~^https?://~~')
           
           # Convert to lowercase
           REGISTRY_BASE=$(echo "$REGISTRY_BASE" | tr '[:upper:]' '[:lower:]')
