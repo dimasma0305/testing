@@ -127,6 +127,9 @@ jobs:
               continue
             fi
 
+            # Check if we have multiple services to determine naming convention
+            service_count=$(echo "$services" | wc -l)
+            
             while IFS=$'\t' read -r svc context dockerfile; do
               # Parse challenge directory to get event, category, challenge_id
               # Expected path format: event/category/challenge_id
@@ -139,32 +142,16 @@ jobs:
               challenge_id="${parts[2]}"
               
               # Construct Image Name: [event]-[category]-[challenge-id]
-              image_name="${event_name}-${category}-${challenge_id}"
+              base_name="${event_name}-${category}-${challenge_id}"
               
-              # If service is not 'web' or 'app' (main service), append it to avoid collision? 
-              # User requested specific format. We will stick to it for the image name.
-              # But we must tag it. 
-              # Tag format: [event]-[category]-[challenge-id]:latest
+              if [ "$service_count" -gt 1 ]; then
+                 image_name="${base_name}-${svc}"
+              else
+                 image_name="${base_name}"
+              fi
               
               # REGISTRY_BASE in this context is registry/owner/repo.
-              # But we want registry/owner/image_name:latest ??
-              # The user said: "tag is formated like this [event_name]-[category]-[challenge-id]:latest"
-              # It implies the whole thing is the tag? or image:tag?
-              # "web challenge one and two use the same image" implies collision in image name/tag combo.
-              
-              # Let's assume we maintain the Registry/Owner prefix.
-              # And we change the Repository/Image part.
-              
-              # We need REGISTRY_ROOT/OWNER.
-              # REGISTRY_BASE currently contains REPO.
-              
-              # Extract REGISTRY_ROOT and OWNER from REGISTRY_BASE
-              # REGISTRY_BASE = registry/owner/repo
               REGISTRY_ROOT_OWNER="${REGISTRY_BASE%/*}"
-              
-              # Construct full image reference
-              # Use service suffix only if it's not the only one? 
-              # To be safe and compliant, let's use the requested format as the IMAGE NAME.
               
               target_image_repo="${REGISTRY_ROOT_OWNER}/${image_name}"
               
@@ -254,17 +241,23 @@ jobs:
             category="${parts[1]}"
             challenge_id="${parts[2]}"
             
-            image_name="${event_name}-${category}-${challenge_id}"
+            base_name="${event_name}-${category}-${challenge_id}"
+            service_count=$(echo "$services" | wc -w)
             
             # REGISTRY_BASE = registry/owner/repo
             REGISTRY_ROOT_OWNER="${REGISTRY_BASE%/*}"
-            target_image_repo="${REGISTRY_ROOT_OWNER}/${image_name}"
             
             # Construct image_tags JSON object
             IMAGE_TAGS_JSON="{"
             first=true
             
             for svc in $services; do
+              if [ "$service_count" -gt 1 ]; then
+                 image_name="${base_name}-${svc}"
+              else
+                 image_name="${base_name}"
+              fi
+              target_image_repo="${REGISTRY_ROOT_OWNER}/${image_name}"
               tag="${target_image_repo}:latest"
               # We need to map service name to tag
               if [ "$first" = true ]; then
