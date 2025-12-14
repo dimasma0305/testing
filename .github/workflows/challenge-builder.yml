@@ -82,7 +82,8 @@ jobs:
             fi
 
             while IFS=$'\t' read -r svc context dockerfile; do
-              tag="ghcr.io/${OWNER}/${REPO}-${svc}:${COMMIT_SHA}"
+              # Use repo name as package name to avoid permission issues
+              tag="ghcr.io/${OWNER}/${REPO}:${svc}-${COMMIT_SHA}"
               # docker compose config returns absolute paths
               build_ctx="$context"
               echo "Building ${svc} -> ${tag} (context: ${build_ctx}, dockerfile: ${dockerfile})"
@@ -145,7 +146,7 @@ jobs:
             REPO="${OWNER_REPO#*/}"
             
             for svc in $services; do
-              tag="ghcr.io/${OWNER}/${REPO}-${svc}:${COMMIT_SHA}"
+              tag="ghcr.io/${OWNER}/${REPO}:${svc}-${COMMIT_SHA}"
               # We need to map service name to tag
               if [ "$first" = true ]; then
                 first=false
