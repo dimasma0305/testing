@@ -45,14 +45,24 @@ jobs:
           
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Log in to GHCR
+      - name: Log in to Registry
         env:
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          if [ -n "$REGISTRY_URL" ] && [ -n "$REGISTRY_USERNAME" ] && [ -n "$REGISTRY_PASSWORD" ]; then
+            echo "Logging in to external registry: $REGISTRY_URL"
+            echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY_URL" -u "$REGISTRY_USERNAME" --password-stdin
+          else
+            echo "Logging in to GHCR"
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          fi
 
-      - name: Build & push challenge images to GHCR
+      - name: Build & push challenge images
         env:
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -z "${{ steps.detect-challenges.outputs.challenges }}" ]; then
@@ -64,6 +74,13 @@ jobs:
           OWNER_REPO="${{ github.repository }}"
           OWNER="${OWNER_REPO%/*}"
           REPO="${OWNER_REPO#*/}"
+
+          # Determine registry base
+          if [ -n "$REGISTRY_URL" ]; then
+             REGISTRY_BASE="$REGISTRY_URL/${OWNER}/${REPO}"
+          else
+             REGISTRY_BASE="ghcr.io/${OWNER}/${REPO}"
+          fi
 
           echo "${{ steps.detect-challenges.outputs.challenges }}" | while read challenge_dir; do
             [ -z "$challenge_dir" ] && continue
@@ -82,8 +99,8 @@ jobs:
             fi
 
             while IFS=$'\t' read -r svc context dockerfile; do
-              # Use repo name as package name to avoid permission issues
-              tag="ghcr.io/${OWNER}/${REPO}:${svc}-${COMMIT_SHA}"
+              # Use repo name as package name or prefix
+              tag="${REGISTRY_BASE}:${svc}-${COMMIT_SHA}"
               # docker compose config returns absolute paths
               build_ctx="$context"
               echo "Building ${svc} -> ${tag} (context: ${build_ctx}, dockerfile: ${dockerfile})"
@@ -97,6 +114,7 @@ jobs:
         env:
           ORCHESTRATOR_URL: ${{ secrets.ORCHESTRATOR_URL }}
           CHALLENGE_TOKEN: ${{ secrets.CHALLENGE_TOKEN }}
+          REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
         run: |
           if [ -z "${{ steps.detect-challenges.outputs.challenges }}" ]; then
             echo "No challenges detected to register"
@@ -105,6 +123,16 @@ jobs:
 
           COMMIT_SHA="${{ github.sha }}"
           REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+          OWNER_REPO="${{ github.repository }}"
+          OWNER="${OWNER_REPO%/*}"
+          REPO="${OWNER_REPO#*/}"
+
+          # Determine registry base
+          if [ -n "$REGISTRY_URL" ]; then
+             REGISTRY_BASE="$REGISTRY_URL/${OWNER}/${REPO}"
+          else
+             REGISTRY_BASE="ghcr.io/${OWNER}/${REPO}"
+          fi
           
           echo "${{ steps.detect-challenges.outputs.challenges }}" | while read challenge_dir; do
             if [ -z "$challenge_dir" ]; then
@@ -141,12 +169,9 @@ jobs:
             # Construct image_tags JSON object
             IMAGE_TAGS_JSON="{"
             first=true
-            OWNER_REPO="${{ github.repository }}"
-            OWNER="${OWNER_REPO%/*}"
-            REPO="${OWNER_REPO#*/}"
             
             for svc in $services; do
-              tag="ghcr.io/${OWNER}/${REPO}:${svc}-${COMMIT_SHA}"
+              tag="${REGISTRY_BASE}:${svc}-${COMMIT_SHA}"
               # We need to map service name to tag
               if [ "$first" = true ]; then
                 first=false
