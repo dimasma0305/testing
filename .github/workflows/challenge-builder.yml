@@ -14,11 +14,11 @@ on:
     paths:
       - '**/challenge.yml'
   workflow_dispatch:
-    inputs:
-      challenge_path:
-        description: 'Path to challenge folder (e.g., challenges/web-challenge)'
-        required: true
-        type: string
+    branches:
+      - main
+      - master
+    paths:
+      - '**/challenge.yml'
 
 jobs:
   register-challenge:
