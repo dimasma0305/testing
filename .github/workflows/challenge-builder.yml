@@ -76,11 +76,15 @@ jobs:
           REPO="${OWNER_REPO#*/}"
 
           # Determine registry base
+          # Determine registry base
           if [ -n "$REGISTRY_URL" ]; then
              REGISTRY_BASE="$REGISTRY_URL/${OWNER}/${REPO}"
           else
              REGISTRY_BASE="ghcr.io/${OWNER}/${REPO}"
           fi
+          
+          # Convert to lowercase as docker tags must be lowercase
+          REGISTRY_BASE=$(echo "$REGISTRY_BASE" | tr '[:upper:]' '[:lower:]')
 
           echo "${{ steps.detect-challenges.outputs.challenges }}" | while read challenge_dir; do
             [ -z "$challenge_dir" ] && continue
@@ -133,6 +137,9 @@ jobs:
           else
              REGISTRY_BASE="ghcr.io/${OWNER}/${REPO}"
           fi
+          
+          # Convert to lowercase
+          REGISTRY_BASE=$(echo "$REGISTRY_BASE" | tr '[:upper:]' '[:lower:]')
           
           echo "${{ steps.detect-challenges.outputs.challenges }}" | while read challenge_dir; do
             if [ -z "$challenge_dir" ]; then
