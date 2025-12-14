@@ -77,7 +77,10 @@ jobs:
 
           # Determine registry base
           # Determine registry base
+          # Determine registry base
           if [ -n "$REGISTRY_URL" ]; then
+             # Strip trailing slash
+             REGISTRY_URL=${REGISTRY_URL%/}
              REGISTRY_BASE="$REGISTRY_URL/${OWNER}/${REPO}"
           else
              REGISTRY_BASE="ghcr.io/${OWNER}/${REPO}"
@@ -136,6 +139,8 @@ jobs:
 
           # Determine registry base
           if [ -n "$REGISTRY_URL" ]; then
+             # Strip trailing slash
+             REGISTRY_URL=${REGISTRY_URL%/}
              REGISTRY_BASE="$REGISTRY_URL/${OWNER}/${REPO}"
           else
              REGISTRY_BASE="ghcr.io/${OWNER}/${REPO}"
