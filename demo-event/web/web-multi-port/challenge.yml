@@ -1,0 +1,7 @@
+name: "Multi-Service Web"
+author: "NomadLab"
+category: "Web"
+description: "A challenge demonstrating communication between two containers services."
+flag: "1pc{multi_service_communication_is_working}"
+type: "container"
+compose_file: docker-compose.yml
